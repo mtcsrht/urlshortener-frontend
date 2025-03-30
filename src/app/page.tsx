@@ -1,10 +1,32 @@
 "use client";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import SuccessAlert from "@/components/SuccessAlert";
+import UrlShortener from "@/components/UrlShortener"; // Import the new component
+import CopyableUrl from "@/components/CopyableUrl";
+import DeleteLinkForm from "@/components/DeleteLinkForm";
 
 export default function Home() {
   const [originalUrl, setOriginalUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
-  const [copyMessage, setCopyMessage] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+  // Get URL search parameters
+  const searchParams = useSearchParams();
+
+  // Check for deleted=true parameter on mount
+  useEffect(() => {
+    if (searchParams.get("deleted") === "true") {
+      setDeleteSuccess(true);
+
+      // Hide the success message after 5 seconds
+      const timer = setTimeout(() => {
+        setDeleteSuccess(false);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async () => {
     if (!originalUrl.trim()) return;
@@ -18,7 +40,7 @@ export default function Home() {
 
       if (response.ok) {
         const data = await response.json();
-        setShortUrl(`http://localhost:3000/${data.short_url}`);
+        setShortUrl(`${window.location}${data.short_url}`);
       } else {
         console.error("Failed to create short URL");
       }
@@ -27,52 +49,21 @@ export default function Home() {
     }
   };
 
-  const copylink = () => {
-    if (!shortUrl) return;
-
-    navigator.clipboard.writeText(shortUrl);
-    setCopyMessage("Copied to clipboard!");
-
-    setTimeout(() => {
-      setCopyMessage("");
-    }, 2000);
-  };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <h1 className="text-3xl font-bold mb-6">Make your links shorter</h1>
 
-      <label className="block text-lg mb-2">Original URL</label>
-      <input
-        type="text"
-        value={originalUrl}
-        onChange={(e) => setOriginalUrl(e.target.value)}
-        className="border-2 border-green-500 p-2 w-80 rounded-md"
-        placeholder="Enter your URL"
+      {deleteSuccess && <SuccessAlert message="Link deleted successfully!" />}
+
+      {/* Replace the input and button with the UrlShortener component */}
+      <UrlShortener 
+        originalUrl={originalUrl}
+        setOriginalUrl={setOriginalUrl}
+        onSubmit={handleSubmit}
       />
 
-      <button
-        onClick={handleSubmit}
-        className="bg-green-500 text-white p-5 mt-4 shadow-md rounded-md"
-      >
-        Create Link
-      </button>
-
-      <label className="block text-lg mt-6">Short URL</label>
-      <div className="relative w-80">
-        <input
-          type="text"
-          value={shortUrl}
-          readOnly
-          onClick={copylink}
-          className="border-2 border-gray-300 p-2 w-full rounded-md bg-gray-200"
-        />
-        {copyMessage && (
-          <span className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-black text-white px-2 py-1 rounded text-sm">
-            {copyMessage}
-          </span>
-        )}
-      </div>
+      <CopyableUrl shortUrl={shortUrl} />
+      <DeleteLinkForm />
     </div>
   );
 }
